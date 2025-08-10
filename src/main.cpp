@@ -5,44 +5,21 @@
 
 using namespace motor_characterization;
 
-// Global variables for motor characterization
-SystemIdentification motorSysId;
-bool isCharacterizing = false;
-std::vector<double> velocityHistory;
-std::vector<double> timeHistory;
-const int HISTORY_SIZE = 10;
-
 // Motor to characterize (adjust port as needed)
 pros::Motor characterizationMotor(1);
-
-/**
- * @brief Calculate acceleration using finite differences
- */
-double calculateAcceleration(const std::vector<double>& velocities, const std::vector<double>& times) {
-    if (velocities.size() < 2 || times.size() < 2) return 0.0;
-    
-    size_t n = velocities.size();
-    double dt = times[n-1] - times[n-2];
-    if (dt < 1e-6) return 0.0;
-    
-    return (velocities[n-1] - velocities[n-2]) / dt;
-}
 
 /**
  * @brief Run complete motor characterization in 20 seconds
  */
 void runMotorCharacterization() {
-    if (isCharacterizing) {
-        return;
-    }
+    // Local variables instead of globals
+    double previousVelocity = 0.0;
+    double previousTime = 0.0;
     
-    isCharacterizing = true;
-    
-    // Clear previous data
-    motorSysId.clearData();
+    // Create system identification object locally
+    SystemIdentification motorSysId;
     
     // Define voltage test points in millivolts with alternating pattern to test acceleration
-    // Pattern: low -> high -> low -> high -> etc. to create acceleration/deceleration
     std::vector<int> testVoltages = {
         0,      // Start at zero
         6000,   // Jump to high positive
@@ -61,63 +38,48 @@ void runMotorCharacterization() {
     // Calculate time per voltage level (20 seconds total)
     int totalVoltages = testVoltages.size();
     int timePerVoltage = 20000 / totalVoltages; // 20 seconds / number of voltages
-    int sampleRate = 10; // 100Hz sampling
     
+    // Simple LCD display - just show we're starting
     pros::lcd::clear();
     pros::lcd::print(0, "Starting Characterization");
     pros::lcd::print(1, "20 seconds total");
-    pros::lcd::print(2, "Testing acceleration");
     pros::delay(1000);
     
     // Collect data for each voltage level
     for (size_t i = 0; i < testVoltages.size(); ++i) {
         int voltage = testVoltages[i];
         
-        // Update LCD with progress
-        pros::lcd::clear();
-        pros::lcd::print(0, "Characterizing...");
-        pros::lcd::print(1, "Test %d/%d: %d mV", i + 1, totalVoltages, voltage);
-        pros::lcd::print(2, "Time: %.1fs", timePerVoltage / 1000.0);
+        // Simple LCD display - just show progress
+        pros::lcd::print(0, "Test %d/%d", i + 1, totalVoltages);
         
-        // Clear history for this test
-        velocityHistory.clear();
-        timeHistory.clear();
+        // Reset previous values for new voltage level
+        previousVelocity = 0.0;
+        previousTime = 0.0;
         
         // Apply voltage to motor using move_voltage
         characterizationMotor.move_voltage(voltage);
         
-        // Collect data for the allocated time
+        // Simplified data collection loop
         uint32_t startTime = pros::millis();
-        uint32_t lastSampleTime = startTime;
         
         while (pros::millis() - startTime < timePerVoltage) {
-            uint32_t currentTime = pros::millis();
+            double currentTime = (pros::millis() - startTime) / 1000.0;
+            double currentVelocity = characterizationMotor.get_actual_velocity();
             
-            if (currentTime - lastSampleTime >= sampleRate) {
-                double timestamp = (currentTime - startTime) / 1000.0;
-                double velocity = characterizationMotor.get_actual_velocity();
-                
-                velocityHistory.push_back(velocity);
-                timeHistory.push_back(timestamp);
-                
-                // Keep only recent history
-                if (velocityHistory.size() > HISTORY_SIZE) {
-                    velocityHistory.erase(velocityHistory.begin());
-                    timeHistory.erase(timeHistory.begin());
-                }
-                
-                lastSampleTime = currentTime;
-                
-                // Calculate acceleration and add data point
-                if (velocityHistory.size() >= 2) {
-                    double acceleration = calculateAcceleration(velocityHistory, timeHistory);
+            // Direct acceleration calculation without history arrays
+            if (previousTime > 0) {
+                double dt = currentTime - previousTime;
+                if (dt > 0.001) { // Avoid division by zero
+                    double acceleration = (currentVelocity - previousVelocity) / dt;
                     // Convert voltage from mV to V for data storage
                     double voltageV = voltage / 1000.0;
-                    motorSysId.addDataPoint(voltageV, velocity, acceleration, timestamp);
+                    motorSysId.addDataPoint(voltageV, currentVelocity, acceleration, currentTime);
                 }
             }
             
-            pros::delay(5);
+            previousVelocity = currentVelocity;
+            previousTime = currentTime;
+            pros::delay(10); // 100Hz sampling
         }
         
         // Stop motor
@@ -131,18 +93,16 @@ void runMotorCharacterization() {
     
     bool success = motorSysId.identify(true, true); // Include static friction and acceleration
     
-    if (success) {
-        // Export data if SD card is available
-        motorSysId.exportToCSV("/usd/motor_characterization.csv");
-    }
-    
-    isCharacterizing = false;
+    // No CSV export - removed for simplicity
 }
 
 /**
  * @brief Display motor characteristics on LCD
  */
 void displayMotorCharacteristics() {
+    // Create local system identification object
+    SystemIdentification motorSysId;
+    
     if (!motorSysId.isSystemIdentified()) {
         pros::lcd::clear();
         pros::lcd::print(0, "No Characterization Data");
@@ -217,11 +177,14 @@ void autonomous() {}
  */
 void opcontrol() {
     pros::Controller master(pros::E_CONTROLLER_MASTER);
+    bool isCharacterizing = false;
 
     while (true) {
         // A button: Run characterization (every time it's pressed)
         if (master.get_digital(pros::E_CONTROLLER_DIGITAL_A) && !isCharacterizing) {
+            isCharacterizing = true;
             runMotorCharacterization();
+            isCharacterizing = false;
         }
         
         // Display motor characteristics on LCD
