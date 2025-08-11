@@ -5,7 +5,7 @@
 #include <cmath>
 #include <algorithm>
 #include <iostream>
-#include <Eigen/Dense>
+#include "Eigen/Dense"
 #include "api.h"
 
 namespace motor_characterization {

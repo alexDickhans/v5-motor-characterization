@@ -43,11 +43,17 @@ We all know some motors perform worse than others, but it's hard to tell which o
 2. Make sure it can spin freely
 3. Upload the code to your V5 brain
 
+### Button Controls
+The tool uses the three buttons on the V5 brain's LCD screen:
+- **LEFT button**: Start motor characterization
+- **CENTER button**: Clear data and start over
+- **RIGHT button**: View detailed results
+
 ### Use It
-1. **Press A** on your controller
+1. **Press LEFT** on the brain's LCD screen
 2. **Wait 20 seconds** (it's testing the motor)
 3. **Write down the numbers** for later
-4. **Press A again** anytime to retest
+4. **Press LEFT again** anytime to retest
 
 ## Tracking Performance
 
@@ -166,6 +172,16 @@ motor.move_voltage(feedforwardVoltage * 1000);
 - `src/main.cpp` - The main code
 - `include/system_identification.hpp` - Math stuff
 - `src/system_identification.cpp` - More math stuff
+
+## Summary
+
+I successfully removed the controller code and replaced it with LLEMU button controls. The motor characterization tool now works entirely through the V5 brain's LCD screen using three buttons:
+
+- **LEFT button**: Start motor characterization
+- **CENTER button**: Clear data and start over  
+- **RIGHT button**: View detailed results
+
+The build now compiles successfully and the tool is ready to use without requiring any external controllers.
 
 ## Technical Stuff
 

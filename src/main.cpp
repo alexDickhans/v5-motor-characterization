@@ -2,6 +2,7 @@
 #include "system_identification.hpp"
 #include <vector>
 #include <cmath>
+#include <iostream>
 
 using namespace motor_characterization;
 
@@ -43,7 +44,6 @@ void runMotorCharacterization() {
     pros::lcd::clear();
     pros::lcd::print(0, "Starting Characterization");
     pros::lcd::print(1, "20 seconds total");
-    pros::delay(1000);
     
     // Collect data for each voltage level
     for (size_t i = 0; i < testVoltages.size(); ++i) {
@@ -104,7 +104,7 @@ void displayMotorCharacteristics() {
     SystemIdentification motorSysId;
     
     if (!motorSysId.isSystemIdentified()) {
-        pros::lcd::clear();
+        // pros::lcd::clear();
         pros::lcd::print(0, "No Characterization Data");
         pros::lcd::print(1, "Press A to Start");
         return;
@@ -112,7 +112,6 @@ void displayMotorCharacteristics() {
     
     FeedforwardConstants constants = motorSysId.getConstants();
     
-    pros::lcd::clear();
     pros::lcd::print(0, "Motor Characteristics");
     pros::lcd::print(1, "kS: %.2f kV: %.3f kA: %.4f", constants.kS, constants.kV, constants.kA);
     pros::lcd::print(2, "R^2: %.3f", motorSysId.getRSquared());
@@ -121,11 +120,11 @@ void displayMotorCharacteristics() {
     // Calculate max velocity estimate (using 12V max)
     double maxVoltage = 12.0;
     double maxVelocity = (maxVoltage - constants.kS) / constants.kV;
-    pros::lcd::print(4, "Max Vel: %.0f RPM", maxVelocity);
+    // pros::lcd::print(4, "Max Vel: %.0f RPM", maxVelocity);
     
     // Show voltage for 100 RPM
     double voltage100 = constants.calculate(100.0, 0.0);
-    pros::lcd::print(5, "100RPM: %.1fV", voltage100);
+    // pros::lcd::print(5, "100RPM: %.1fV", voltage100);
 }
 
 /**
@@ -144,6 +143,8 @@ void initialize() {
     pros::lcd::set_text(1, "Press A to Start");
     
     pros::lcd::register_btn1_cb(on_center_button);
+
+    std::cout << "Initializing" << std::endl;
 }
 
 /**
@@ -192,6 +193,6 @@ void opcontrol() {
             displayMotorCharacteristics();
         }
         
-        pros::delay(100); // Update every 100ms
+        pros::delay(10); // Update every 100ms
     }
 }
